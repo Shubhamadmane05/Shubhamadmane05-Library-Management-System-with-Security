@@ -30,7 +30,7 @@ function Search() {
             
             <input
                 type="text"
-                placeholder="Type to search ..."
+                placeholder="Type to search ...currently not working "
                 className="flex-1 border-none outline-none px-4 py-2 text-gray-700 text-sm bg-gray-100 rounded-full focus:bg-white focus:shadow focus:ring-2 focus:ring-blue-10 transition duration-300"
                 value={query}
                 onChange={handleChange}
