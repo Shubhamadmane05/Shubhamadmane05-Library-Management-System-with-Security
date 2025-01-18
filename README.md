@@ -1,3 +1,7 @@
+Note: 
+Admin username : ADMIN
+Admin Passowrd: ADMIN
+
 Library Management System
 
 Overview
