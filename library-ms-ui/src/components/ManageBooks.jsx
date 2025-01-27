@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import axios from "axios";
 import Navbar from "./Navbar";
 import logo from "../assets/book2.jpg";
+import { Link } from "react-router-dom";
 
 const ManageBooks = () => {
   const { token } = useSelector((state) => state.auth);
@@ -126,6 +127,13 @@ const ManageBooks = () => {
   return (
     <div className="p-6 bg-gray-100">
       <Navbar />
+        
+      <Link to="/bookhistory" className="flex justify-end">
+        <span className="text-lg underline text-blue-600 hover:text-blue-800">
+          Books History
+        </span>
+      </Link>
+
       <h1 className="text-2xl font-bold mb-4">Manage Books</h1>
       <div className="flex justify-center items-center flex-col mb-6">
      <div className="w-full max-w-md">
@@ -175,7 +183,7 @@ const ManageBooks = () => {
               className="border p-2 rounded"
             >
               <option value="Available">Available</option>
-              <option value="Borrowed">Borrowed</option>
+              <option value="borrowed">borrowed</option>
             </select>
             <input
               type="number"

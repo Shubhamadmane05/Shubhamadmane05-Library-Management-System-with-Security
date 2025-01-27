@@ -1,7 +1,7 @@
 import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import logo from '../assets/icon.jpeg';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { clearCredentials } from './redux/authSlice'; 
 
 const Navbar = () => {
@@ -12,8 +12,7 @@ const Navbar = () => {
   const handleLogout = () => {
     
     dispatch(clearCredentials());
-  
-    navigate('/');
+   navigate('/');
   };
 
   return (
@@ -28,7 +27,10 @@ const Navbar = () => {
      
       {isAuthenticated && (
         <div className="flex items-center gap-6">
-          <span className="text-sm">Welcome, {user?.name || 'User'}!</span>
+                  
+                   
+           <Link to='/viewBooks'><span  className="text-sm">ViewBooks</span></Link>
+          <span className="text-sm">Welcome, {user?.username || 'User'}!</span>
           <button
             onClick={handleLogout}
             className="bg-red-500 px-4 py-2 rounded text-white hover:bg-red-600 focus:outline-none transition"

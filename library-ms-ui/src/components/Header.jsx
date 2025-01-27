@@ -41,7 +41,7 @@ function Header() {
   };
 
   return (
-    <nav className="bg-blue-600 text-white flex items-center justify-between p-4 px-6 py-4 mr-2 ml-2 shadow-md">
+    <nav className="bg-gradient-to-r from-teal-500 to-green-400 text-white flex items-center justify-between p-4 px-6 py-4 mr-2 ml-2 shadow-md">
       
       <div
         className="flex items-center cursor-pointer"
