@@ -17,12 +17,19 @@ public class StudentController {
 
     @Autowired
     private StudentService studentService;
+    @PostMapping("/register")
+    public ResponseEntity<?> createStudent(@RequestBody Student student) {
+        // Check if the username already exists
+        if (studentService.isUsernameTaken(student.getUsername())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                                 .body("Username is already taken. Please choose a different one.");
+        }
 
-    @PostMapping("/create")
-    public ResponseEntity<Student> createStudent(@RequestBody Student student) {
+        // Proceed with creating the student if the username is not taken
         Student createdStudent = studentService.createStudent(student);
         return new ResponseEntity<>(createdStudent, HttpStatus.CREATED);
     }
+
     
     @GetMapping("/getStudents")
     public ResponseEntity<List<Student>> getAllStudents() {

@@ -2,11 +2,15 @@ package com.library.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.library.model.Books;
+import com.library.model.BorrowHistory;
 import com.library.model.Student;
 import com.library.repository.BooksRepository;
+import com.library.repository.BorrowHistoryRepository;
 
-import jakarta.transaction.Transactional;
+
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,8 +21,12 @@ public class BookService {
 
     @Autowired
     private BooksRepository booksRepository;
+    
+    @Autowired
+    private BorrowHistoryService borrowHistoryService;
 
-   
+   @Autowired
+   private BorrowHistoryRepository borrowHistoryRepository;
     public List<Books> getAllBooks() {
         return booksRepository.findAll();
     }
@@ -37,9 +45,11 @@ public class BookService {
         Books book = booksRepository.findById(id).orElseThrow(
             () -> new RuntimeException("Book not found with id: " + id)
         );
+        book.setId(bookDetails.getId());
         book.setTitle(bookDetails.getTitle());
         book.setAuthor(bookDetails.getAuthor());
         book.setPublishedYear(bookDetails.getPublishedYear());
+        book.setQuantity(bookDetails.getQuantity());
         book.setUpdatedAt(LocalDateTime.now()); // Updated time
         return booksRepository.save(book);
     }
@@ -79,5 +89,74 @@ public class BookService {
         System.out.println("Found book: " + book);
         return book;
     } 
+    
+
+
+    
+    @Transactional(rollbackFor = Throwable.class)
+    public void borrowBook(UUID id, Student student) {
+        // Fetch the book from the repository
+        Books book = booksRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Book not found with id: " + id));
+
+        // Check if the book is available
+        if (book.getQuantity() <= 0) {
+            throw new RuntimeException("Book not available for borrowing.");
+        }
+
+        // Decrement the book quantity
+        book.setQuantity(book.getQuantity() );
+
+        // Update book status based on remaining quantity
+        book.setStatus(book.getQuantity() > 0 ? "Available" : "borrowed");
+
+        // Save the updated book record
+        booksRepository.save(book);
+
+        // Create a borrow history record
+        BorrowHistory borrowHistory = new BorrowHistory();
+        borrowHistory.setBook(book);
+        borrowHistory.setStudent(student);
+        borrowHistory.setBorrowedDate(LocalDateTime.now());
+
+        // Save the borrow history
+        borrowHistoryService.saveBorrowHistory(borrowHistory);
+    }
+
+    @Transactional
+    public void returnBook(UUID id, Student student) {
+        // Find the latest borrow history for the given book and student
+        BorrowHistory history = borrowHistoryService.findLatestBorrowRecordByBookIdAndStudent(id, student);
+
+        // Check if borrow history is found
+        if (history == null) {
+            throw new RuntimeException("No active borrow history found for this book.");
+        }
+
+        // Get the book associated with this borrow history
+        Books book = history.getBook();
+        if (book == null) {
+            throw new RuntimeException("Book not found for the borrow history.");
+        }
+
+        // Increase the book quantity by 1
+        book.setQuantity(book.getQuantity() );
+
+        // Save the updated book back to the database
+        booksRepository.save(book);
+
+        // Update the borrow history (could be marking it as 'returned' or updating the return date)
+        history.setReturnedDate(LocalDateTime.now()); // Assuming you have a return date field
+        borrowHistoryService.updateBorrowHistory(history); // Update borrow history with the return date
+    }
+
+
+
+
+    public List<Books> getBorrowedBooksByStudent(Student student) {
+        // Assuming student.getBorrowedBooks() contains a list of book IDs
+        List<UUID> borrowedBookIds = student.getBorrowedBooks();
+        return booksRepository.findAllById(borrowedBookIds);
+    }
  }
 

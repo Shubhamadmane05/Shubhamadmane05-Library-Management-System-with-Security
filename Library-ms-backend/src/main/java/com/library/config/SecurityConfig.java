@@ -45,14 +45,14 @@ public class SecurityConfig {
         http.csrf().disable()  // Disabling CSRF for stateless authentication
             .authorizeRequests(authorize -> authorize
                 
-                .requestMatchers("/auth/**", "/students/**","/error").permitAll()  // Allow login, registration, etc., without authentication
+                .requestMatchers("/auth/**", "/students/register","/error").permitAll()  // Allow login, registration, etc., without authentication
                  // Anyone can view books without login (if needed)
 
                 // Role-based access for logged-in users
                  // Admin can perform CRUD on books
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/books/viewBooks", "books/{bookId}/status","books/{id}/borrow","books/{id}/return","books/api/search").hasAnyRole( "STUDENT","ADMIN") 
-                .requestMatchers("/books/getBooks", "students/getStudents").hasAnyRole( "ADMIN") 
+                .requestMatchers("/books/viewBooks", "books/{id}/status","books/{id}/borrow","books/{id}/return","books/borrowHistory" ).hasAnyRole( "STUDENT","ADMIN") 
+                .requestMatchers("/books/getBooks", "students/getStudents","/error","books/history","books/borrowed").hasAnyRole( "ADMIN") 
                 .requestMatchers("/books/**").hasAuthority("ROLE_ADMIN")
 // Students and admins can view books
 //                .requestMatchers("/books/**").hasRole("ADMIN") 

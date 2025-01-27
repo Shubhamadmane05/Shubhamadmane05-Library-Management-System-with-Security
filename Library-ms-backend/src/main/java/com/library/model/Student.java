@@ -16,31 +16,43 @@ import lombok.Setter;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-@Entity
-@Table(name = "users")
+
 
 @NoArgsConstructor
 @AllArgsConstructor
 @Setter
 @Getter
+@Entity
+@Table(name = "users")
 public class Student {
 
     @Id
     @GeneratedValue
     private UUID id;
+    
+    @Column(nullable = false)
+    private String studentEnrollNo;
+    
+    @Column(nullable = false)
+    private String fullName;
 
     @Column(nullable = false, unique = true)
     private String username;
 
     @Column(nullable = false)
     private String password;
+    
     @Column(nullable = false)
     private String email;
+    
+    @Column(nullable = false)
+    private Long mobile;
    
     private String role;
 
@@ -50,8 +62,12 @@ public class Student {
     @Column(nullable = false)
     private String updatedAt;
     
+    
     @JsonIgnore
-    @OneToMany(mappedBy = "borrowedBy") 
-    private List<Books> borrowedBooks;
+    @OneToMany(mappedBy = "student", cascade = CascadeType.ALL)
+    private List<BorrowHistory> borrowHistory;
+    
+    @ElementCollection
+    private List<UUID> borrowedBooks = new ArrayList<>();
 }
 

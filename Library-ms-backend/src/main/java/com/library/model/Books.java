@@ -1,19 +1,30 @@
 package com.library.model;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
+@NoArgsConstructor
+@AllArgsConstructor
+@Setter
+@Getter
 @Entity
 @Table(name = "books")
 public class Books {
 
     @Id
     @GeneratedValue
-    private UUID id;
+    private UUID id; 
+    
+    private String bookId;
 
     @Column(nullable = false)
     private String title;
@@ -33,89 +44,15 @@ public class Books {
     @Column(nullable = false)
     private LocalDateTime updatedAt; 
     
+    @Column(nullable = false)
+    private Integer quantity;
+    
     @JsonIgnore
-    @ManyToOne 
-    @JoinColumn(name = "borrowed_by_user_id" , nullable = true) 
-    private Student borrowedBy;
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL)
+    private List<BorrowHistory> borrowHistory;
 
-    
-    public Books() {}
+    @Version
+    private int version;
 
-    
-    public Books(UUID id, String title, String author, String status, Integer publishedYear, LocalDateTime createdAt, LocalDateTime updatedAt) {
-        this.id = id;
-        this.title = title;
-        this.author = author;
-        this.status = status;
-        this.publishedYear = publishedYear;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-    }
 
-    // Getters and setters
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    public String getAuthor() {
-        return author;
-    }
-
-    public void setAuthor(String author) {
-        this.author = author;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public Integer getPublishedYear() {
-        return publishedYear;
-    }
-
-    public void setPublishedYear(Integer publishedYear) {
-        this.publishedYear = publishedYear;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-	public Student getBorrowedBy() {
-		return borrowedBy;
-	}
-
-	public void setBorrowedBy(Student borrowedBy) {
-		this.borrowedBy = borrowedBy;
-	}
-    
- 
 }

@@ -16,6 +16,9 @@ import jakarta.servlet.http.HttpServletResponse;
 @Component
 public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
   
+	//Logger is an interface provided by SLF4J 
+	//LoggerFactory is a utility class in SLF4J used to create Logger instances. 
+//SLF4J (Simple Logging Facade for Java) is a logging abstraction framework for Java applications
     private Logger logger = LoggerFactory.getLogger(JwtAuthenticationEntryPoint.class);
 
 	@Override

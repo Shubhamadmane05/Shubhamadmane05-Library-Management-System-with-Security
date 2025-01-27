@@ -1,22 +1,39 @@
 package com.library.controller;
 
+
+import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.annotation.*;
 
-import com.library.dto.BookDTO;
+import com.library.dto.BorrowHistoryDTO;
+import com.library.jwt.JwtHelper;
+import com.library.jwt.JwtUtil;
 import com.library.model.Books;
+import com.library.model.BorrowHistory;
 import com.library.model.Student;
 import com.library.repository.BooksRepository;
+import com.library.repository.BorrowHistoryRepository;
+import com.library.repository.StudentRepository;
 import com.library.service.BookService;
+import com.library.service.BorrowHistoryService;
 import com.library.service.StudentService;
 
+
 import org.springframework.security.access.annotation.Secured;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping("/books")
@@ -24,6 +41,20 @@ public class BookController {
 
     @Autowired
     private BookService bookService;
+    
+    @Autowired
+    private JwtUtil jwtUtil;
+    
+    @Autowired
+    private BorrowHistoryRepository borrowHistoryRepository;
+    @Autowired
+    private BorrowHistoryService borrowHistoryService;
+    
+    @Autowired
+    private StudentRepository studentRepository;
+    
+    @Autowired
+    private JwtHelper jwtHelper;
     
     @Autowired
     private StudentService studentService;
@@ -59,7 +90,7 @@ public class BookController {
         return new ResponseEntity<>(book, HttpStatus.OK);
     }
 
-    @Secured("ROLE_STUDENT")
+   
     @GetMapping("/getBooks")
     
     public ResponseEntity<List<Books>> getAllBooks() {
@@ -68,10 +99,14 @@ public class BookController {
     }
     
     @GetMapping("/viewBooks")
-    public ResponseEntity<List<Books>> viewAllBooks() {
+      public ResponseEntity<List<Books>> getBooks() {
         List<Books> books = bookService.getAllBooks();
         return new ResponseEntity<>(books, HttpStatus.OK);
     }
+    
+    
+
+
     
 
     
@@ -96,91 +131,106 @@ public class BookController {
         return validStatuses.contains(status);
     }
 
-    @GetMapping("/api/search")
-    public ResponseEntity<List<Books>> searchBooks(
-        @RequestParam String query, 
-        @RequestParam String searchBy) {
-        
-        List<Books> books;
-        if ("book".equals(searchBy)) {
-            books = booksRepository.findByTitleContaining(query); 
-        } else if ("author".equals(searchBy)) {
-            books = booksRepository.findByAuthorContaining(query); 
-        } else {
-            return ResponseEntity.badRequest().build(); 
+     
+    @GetMapping("/borrowHistory")
+    public ResponseEntity<List<BorrowHistoryDTO>> getBorrowedBook(@RequestHeader("Authorization") String token) {
+        String username = jwtUtil.extractUsername(token);
+        Student student = studentService.findByUserName(username);
+
+        if (student == null || !"ROLE_STUDENT".equalsIgnoreCase(student.getRole())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null);
         }
 
-        return ResponseEntity.ok(books);
+        // Use the student's ID to get borrow history
+        List<BorrowHistoryDTO> history = borrowHistoryService.getBorrowedBooksForStudent(student.getId());
+        return ResponseEntity.ok(history);
     }
-    
-    @PatchMapping("/{bookId}/borrow")
-    public ResponseEntity<?> borrowBook(@PathVariable UUID bookId, @RequestParam String username) {
-        System.out.println("Borrow book API called with bookId: " + bookId + " and username: " + username);
-
+    @PatchMapping("/{id}/borrow")
+    public ResponseEntity<?> borrowBook(@PathVariable UUID id, @RequestHeader("Authorization") String token) {
         try {
-           
-            Books book = bookService.findById(bookId);
-            if (book == null) {
-                System.out.println("Book not found with ID: " + bookId);
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Book not found.");
+            String username = jwtUtil.extractUsername(token);
+            Student student = studentService.findByUserName(username);
+
+            if (student == null || !"ROLE_STUDENT".equalsIgnoreCase(student.getRole())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Invalid student role.");
             }
 
-           
-            Student student = studentService.findByUserName(username); 
-            if (student == null) {
-                System.out.println("Student not found with username: " + username);
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Student not found.");
-            }
+            bookService.borrowBook(id, student); // Updates book status and student record
+            studentService.addBorrowedBook(username, id); // Adds book to student's borrowedBooks list
 
-            // Validate book availability and student role
-            if (!book.getStatus().equalsIgnoreCase("Available")) {
-                System.out.println("Book is not available.");
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Book is not available for borrowing.");
-            }
-
-            if (!student.getRole().equalsIgnoreCase("ROLE_STUDENT")) {
-                System.out.println("User is not a student.");
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only students can borrow books.");
-            }
-
-            book.setStatus("borrowed");
-            book.setBorrowedBy(student);
-
-            
-            bookService.addBook(book);
-
-            System.out.println("Book borrowed successfully.");
-            return ResponseEntity.ok(new BookDTO(
-                book.getId(),
-                book.getTitle(),
-                book.getAuthor(),
-                book.getStatus(),
-                student.getId()
-            ));
-        } catch (Exception e) {
-            System.err.println("Error while borrowing book: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred while borrowing the book.");
+            return ResponseEntity.ok("Book borrowed successfully.");
+        } catch (RuntimeException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
         }
     }
-    
     @PatchMapping("/{id}/return")
-    public Books returnBook(@PathVariable UUID id) {
-        Books book = bookService.findById(id);
+    public ResponseEntity<?> returnBook(@PathVariable UUID id, @RequestHeader("Authorization") String token) {
+        try {
+            String username = jwtUtil.extractUsername(token);
+            Student student = studentService.findByUserName(username);
 
-        if (book != null && "borrowed".equals(book.getStatus())) {
-            System.out.println("Before update - Status: " + book.getStatus() + ", BorrowedBy: " + book.getBorrowedBy());
-            
-            book.setStatus("Available");
-            book.setBorrowedBy(null);
+            if (student == null || !"ROLE_STUDENT".equalsIgnoreCase(student.getRole())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Invalid student.");
+            }
 
-            Books updatedBook = bookService.addBook(book);
+            bookService.returnBook(id, student); // Updates book status
+            studentService.removeBorrowedBook(username, id); // Removes book from student's borrowedBooks list
 
-            System.out.println("After update - Status: " + updatedBook.getStatus() + ", BorrowedBy: " + updatedBook.getBorrowedBy());
-
-            return updatedBook;
+            return ResponseEntity.ok("Book returned successfully.");
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
         }
-
-        return null;
     }
+
+    
+    
+
+    @GetMapping("/borrowed")
+    public ResponseEntity<?> getAllBorrowBooks(@RequestHeader("Authorization") String token) {
+        try {
+            // Extract JWT and username
+            String jwt = token.startsWith("Bearer ") ? token.substring(7) : token;
+            String username = jwtUtil.extractUsername(jwt);
+
+            // Debugging logs
+            System.out.println("Username: " + username);
+
+            // Check if the user exists and their role
+            Student user = studentService.findByUserName(username);
+            if (user == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found.");
+            }
+            System.out.println("Role: " + user.getRole());
+
+            if (!"ROLE_ADMIN".equalsIgnoreCase(user.getRole().trim())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied: Only admins can view borrowed books.");
+            }
+
+            // Fetch all borrowed books
+            List<BorrowHistory> allBorrowedBooks = borrowHistoryRepository.findAll();
+            return ResponseEntity.ok(allBorrowedBooks);
+
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error: " + ex.getMessage());
+        }
+    }
+
+
+    @GetMapping("/history")
+    public ResponseEntity<?> getBorrowHistory() {
+        List<BorrowHistory> history = borrowHistoryRepository.findAll();
+        return ResponseEntity.ok(history.stream().map(h -> {
+            Map<String, Object> record = new HashMap<>();
+            record.put("studentFullName", h.getStudent().getFullName());
+            record.put("studentEnrollNo", h.getStudent().getStudentEnrollNo());
+            record.put("bookTitle", h.getBook().getTitle());
+            record.put("bookAuthor", h.getBook().getAuthor());
+            record.put("borrowedDate", h.getBorrowedDate());
+            record.put("returnedDate", h.getReturnedDate());
+            return record;
+        }).collect(Collectors.toList()));
+    }
+
+
 
 }
